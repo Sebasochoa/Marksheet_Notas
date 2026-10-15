@@ -1,30 +1,44 @@
-"""Widgets y estado de la fila de un alumno en la tabla."""
+"""Widgets y estado de la fila de un alumno en la tabla, y la grilla que comparten."""
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
 from typing import Callable
 
 from ..config import COLUMNAS_GRILLA, CRITERIOS
 from ..modelos import FilaPlantilla
 from ..notas import calificar, es_nota_valida, formatear
+from . import tema
+from .neu import Campo, Pastilla
 
 ENCABEZADOS_DATOS = ("N°", "", "Código", "Apellidos y nombres")
 ENCABEZADOS = ENCABEZADOS_DATOS + COLUMNAS_GRILLA
-ALINEACION_DATOS = ("e", "", "", "w")
+ALINEACION_DATOS = ("e", "w", "w", "w")
+ALINEACION_ENCABEZADO = ALINEACION_DATOS + ("",) * len(COLUMNAS_GRILLA)
 PRIMERA_COLUMNA_NOTAS = len(ENCABEZADOS_DATOS)
 COLUMNA_TOTAL = PRIMERA_COLUMNA_NOTAS + len(CRITERIOS)
 COLUMNA_FINAL = COLUMNA_TOTAL + 1
-
-COLOR_CAMPO = "white"
-COLOR_ERROR = "#f6c6c6"
-COLOR_APROBADO = "#1b7a1b"
-COLOR_DESAPROBADO = "#c62828"
-ANCHO_CAMPO = 5
+COLUMNA_NOMBRE = 3
+ANCHOS_COLUMNA = (30, 20, 112, 220, 64, 64, 64, 64, 64, 64)   # px de diseño (mínimos)
 ANCHO_RESULTADO = 6
-MARGEN_DATOS = 4
-MARGEN_CAMPO = 2
-MARGEN_VERTICAL = 1
+
+
+def configurar_columnas(contenedor: tk.Misc) -> None:
+    for columna, ancho in enumerate(ANCHOS_COLUMNA):
+        contenedor.grid_columnconfigure(columna, minsize=tema.px(ancho),
+                                        weight=1 if columna == COLUMNA_NOMBRE else 0)
+
+
+def crear_encabezado(contenedor: tk.Misc) -> None:
+    for columna, (texto, alineacion) in enumerate(zip(ENCABEZADOS, ALINEACION_ENCABEZADO)):
+        tk.Label(contenedor, text=texto.upper(), font=tema.fuentes.mini, fg=tema.TEXTO_TENUE,
+                 bg=tema.FONDO).grid(row=0, column=columna, sticky=alineacion,
+                                     padx=tema.px(4), pady=(tema.px(2), tema.px(8)))
+    crear_linea(contenedor, 1, "#2e323b")
+
+
+def crear_linea(contenedor: tk.Misc, fila: int, color: str = tema.LINEA) -> None:
+    tk.Frame(contenedor, height=1, bg=color).grid(row=fila, column=0,
+                                                  columnspan=len(ENCABEZADOS), sticky="ew")
 
 
 class FilaNotas:
@@ -36,9 +50,13 @@ class FilaNotas:
         self._al_cambiar = al_cambiar
         self._variables = [tk.StringVar(contenedor) for _ in CRITERIOS]
         self._crear_datos(contenedor, numero_fila)
-        self.entradas = self._crear_entradas(contenedor, numero_fila)
-        self._total = self._crear_resultado(contenedor, numero_fila, COLUMNA_TOTAL)
-        self._final = self._crear_resultado(contenedor, numero_fila, COLUMNA_FINAL)
+        self._campos = self._crear_campos(contenedor, numero_fila)
+        self.entradas = [campo.entrada for campo in self._campos]
+        self._total = tk.Label(contenedor, width=ANCHO_RESULTADO, font=tema.fuentes.celda,
+                               fg=tema.TEXTO_SUAVE, bg=tema.FONDO)
+        self._total.grid(row=numero_fila, column=COLUMNA_TOTAL)
+        self._final = Pastilla(contenedor)
+        self._final.grid(row=numero_fila, column=COLUMNA_FINAL)
         for variable in self._variables:
             variable.trace_add("write", lambda *_: self._actualizar())
 
@@ -49,49 +67,45 @@ class FilaNotas:
         return all(es_nota_valida(texto) for texto in self.textos())
 
     def resaltar_campos_vacios(self) -> None:
-        for entrada, texto in zip(self.entradas, self.textos()):
+        for campo, texto in zip(self._campos, self.textos()):
             if not texto:
-                entrada.configure(bg=COLOR_ERROR)
+                campo.marcar_error(True)
 
     def _crear_datos(self, contenedor: tk.Misc, numero_fila: int) -> None:
         alumno = self.fila.alumno
-        valores = (alumno.numero, alumno.marca, alumno.codigo, alumno.nombre_completo)
-        for columna, (valor, alineacion) in enumerate(zip(valores, ALINEACION_DATOS)):
-            ttk.Label(contenedor, text=valor).grid(row=numero_fila, column=columna,
-                                                   padx=MARGEN_DATOS, sticky=alineacion)
+        f = tema.fuentes
+        valores = (
+            (alumno.numero, f.celda, tema.TEXTO_TENUE),
+            (alumno.marca, f.pequena, tema.MAGENTA_CLARO),
+            (alumno.codigo, f.pequena, tema.TEXTO_SUAVE),
+            (alumno.nombre_completo, f.celda, tema.TEXTO),
+        )
+        for columna, ((valor, fuente, color), alineacion) in enumerate(zip(valores, ALINEACION_DATOS)):
+            tk.Label(contenedor, text=valor, font=fuente, fg=color, bg=tema.FONDO,
+                     anchor=alineacion).grid(row=numero_fila, column=columna, padx=tema.px(4),
+                                             sticky=alineacion)
 
-    def _crear_entradas(self, contenedor: tk.Misc, numero_fila: int) -> list[tk.Entry]:
-        entradas = []
+    def _crear_campos(self, contenedor: tk.Misc, numero_fila: int) -> list[Campo]:
+        campos = []
         for desplazamiento, variable in enumerate(self._variables):
-            entrada = tk.Entry(contenedor, textvariable=variable, width=ANCHO_CAMPO,
-                               justify="center", bg=COLOR_CAMPO)
-            entrada.grid(row=numero_fila, column=PRIMERA_COLUMNA_NOTAS + desplazamiento,
-                         padx=MARGEN_CAMPO, pady=MARGEN_VERTICAL)
-            entradas.append(entrada)
-        return entradas
-
-    @staticmethod
-    def _crear_resultado(contenedor: tk.Misc, numero_fila: int, columna: int) -> tk.Label:
-        etiqueta = tk.Label(contenedor, width=ANCHO_RESULTADO)
-        etiqueta.grid(row=numero_fila, column=columna)
-        return etiqueta
+            campo = Campo(contenedor, variable)
+            campo.grid(row=numero_fila, column=PRIMERA_COLUMNA_NOTAS + desplazamiento,
+                       padx=tema.px(4), pady=tema.px(7))
+            campos.append(campo)
+        return campos
 
     def _actualizar(self) -> None:
-        self._resaltar_invalidas()
+        for campo, texto in zip(self._campos, self.textos()):
+            campo.marcar_error(bool(texto) and not es_nota_valida(texto))
         self._mostrar_resultado()
         self._al_cambiar()
-
-    def _resaltar_invalidas(self) -> None:
-        for entrada, texto in zip(self.entradas, self.textos()):
-            invalida = bool(texto) and not es_nota_valida(texto)
-            entrada.configure(bg=COLOR_ERROR if invalida else COLOR_CAMPO)
 
     def _mostrar_resultado(self) -> None:
         if not self.esta_completa():
             self._total.configure(text="")
-            self._final.configure(text="")
+            self._final.mostrar("", None)
             return
         calificacion = calificar(self.textos())
-        color = COLOR_APROBADO if calificacion.aprobada else COLOR_DESAPROBADO
         self._total.configure(text=formatear(calificacion.total))
-        self._final.configure(text=formatear(calificacion.final), fg=color)
+        self._final.mostrar(formatear(calificacion.final),
+                            "cian" if calificacion.aprobada else "magenta")

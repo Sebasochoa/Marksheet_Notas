@@ -2,41 +2,39 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import font as tkfont
 from tkinter import ttk
 from typing import Callable, Iterable, Sequence
 
 from ..config import CRITERIOS
 from ..modelos import FilaPlantilla
-from .fila import ENCABEZADOS, FilaNotas
+from . import tema
+from .fila import ENCABEZADOS, FilaNotas, configurar_columnas, crear_encabezado, crear_linea
 
-MARGEN = 4
-MARGEN_ENCABEZADO = (4, 6)
-MARGEN_SEPARADOR = (8, 2)
 PASOS_POR_GIRO = 1
 
 
-class TablaNotas(ttk.Frame):
+class TablaNotas(tk.Frame):
     def __init__(self, padre: tk.Misc, al_cambiar: Callable[[], None]):
-        super().__init__(padre)
+        super().__init__(padre, bg=tema.FONDO)
         self._al_cambiar = al_cambiar
-        self._negrita = _fuente_negrita()
         self._lienzo, self._interior = self._crear_area_desplazable()
+        configurar_columnas(self._interior)
         self.filas: list[FilaNotas] = []
         self._entradas: list[tk.Entry] = []
 
     def mostrar(self, filas_plantilla: Sequence[FilaPlantilla]) -> None:
         self._limpiar()
-        self._crear_encabezado()
+        crear_encabezado(self._interior)
         separar_paginas = len({f.ubicacion.pagina for f in filas_plantilla}) > 1
-        numero_fila, pagina_actual = 1, None
+        numero_fila, pagina_actual = 2, None
         for fila_plantilla in filas_plantilla:
             if separar_paginas and fila_plantilla.ubicacion.pagina != pagina_actual:
                 pagina_actual = fila_plantilla.ubicacion.pagina
                 self._crear_separador_de_pagina(numero_fila, pagina_actual)
                 numero_fila += 1
             self._agregar_fila(numero_fila, fila_plantilla)
-            numero_fila += 1
+            crear_linea(self._interior, numero_fila + 1)
+            numero_fila += 2
         self._lienzo.yview_moveto(0)
         self.enfocar(0)
 
@@ -58,17 +56,18 @@ class TablaNotas(ttk.Frame):
             entrada.select_range(0, "end")
         return "break"
 
-    def _crear_area_desplazable(self) -> tuple[tk.Canvas, ttk.Frame]:
-        lienzo = tk.Canvas(self, highlightthickness=0)
+    def _crear_area_desplazable(self) -> tuple[tk.Canvas, tk.Frame]:
+        lienzo = tk.Canvas(self, highlightthickness=0, bd=0, bg=tema.FONDO)
         barra = ttk.Scrollbar(self, orient="vertical", command=lienzo.yview)
         lienzo.configure(yscrollcommand=barra.set)
-        barra.pack(side="right", fill="y")
+        barra.pack(side="right", fill="y", padx=(tema.px(8), 0))
         lienzo.pack(side="left", fill="both", expand=True)
-        interior = ttk.Frame(lienzo)
-        lienzo.create_window((0, 0), window=interior, anchor="nw")
+        interior = tk.Frame(lienzo, bg=tema.FONDO)
+        ventana = lienzo.create_window((0, 0), window=interior, anchor="nw")
         interior.bind("<Configure>",
                       lambda _evento: lienzo.configure(scrollregion=lienzo.bbox("all")))
-        lienzo.bind_all("<MouseWheel>", self._desplazar_con_rueda)
+        lienzo.bind("<Configure>", lambda e: lienzo.itemconfigure(ventana, width=e.width))
+        lienzo.bind_all("<MouseWheel>", self._desplazar_con_rueda, add="+")
         return lienzo, interior
 
     def _limpiar(self) -> None:
@@ -76,15 +75,14 @@ class TablaNotas(ttk.Frame):
             widget.destroy()
         self.filas, self._entradas = [], []
 
-    def _crear_encabezado(self) -> None:
-        for columna, texto in enumerate(ENCABEZADOS):
-            ttk.Label(self._interior, text=texto, font=self._negrita).grid(
-                row=0, column=columna, padx=MARGEN, pady=MARGEN_ENCABEZADO)
-
     def _crear_separador_de_pagina(self, numero_fila: int, pagina: int) -> None:
-        ttk.Label(self._interior, text=f"Página {pagina + 1}", font=self._negrita).grid(
-            row=numero_fila, column=0, columnspan=len(ENCABEZADOS), sticky="w",
-            pady=MARGEN_SEPARADOR)
+        caja = tk.Frame(self._interior, bg=tema.FONDO)
+        caja.grid(row=numero_fila, column=0, columnspan=len(ENCABEZADOS), sticky="w",
+                  padx=tema.px(4), pady=(tema.px(16), tema.px(4)))
+        tk.Label(caja, text=tema.glifo("paginas"), font=tema.fuente_icono(11),
+                 fg=tema.AMARILLO, bg=tema.FONDO).pack(side="left")
+        tk.Label(caja, text=f"PÁGINA {pagina + 1}", font=tema.fuentes.mini_fuerte,
+                 fg=tema.AMARILLO, bg=tema.FONDO).pack(side="left", padx=(tema.px(6), 0))
 
     def _agregar_fila(self, numero_fila: int, fila_plantilla: FilaPlantilla) -> None:
         fila = FilaNotas(self._interior, numero_fila, fila_plantilla, self._al_cambiar)
@@ -99,7 +97,7 @@ class TablaNotas(ttk.Frame):
         entrada.bind("<Return>", lambda _evento: self.enfocar(posicion + 1))
         entrada.bind("<Down>", lambda _evento: self.enfocar(posicion + salto_de_fila))
         entrada.bind("<Up>", lambda _evento: self.enfocar(posicion - salto_de_fila))
-        entrada.bind("<FocusIn>", lambda _evento: self._hacer_visible(entrada))
+        entrada.bind("<FocusIn>", lambda _evento: self._hacer_visible(entrada.master), add="+")
 
     def _hacer_visible(self, widget: tk.Widget) -> None:
         """Desplaza la tabla para que el campo con foco quede a la vista."""
@@ -115,11 +113,7 @@ class TablaNotas(ttk.Frame):
             self._lienzo.yview_moveto((abajo - alto_vista) / alto_tabla)
 
     def _desplazar_con_rueda(self, evento: tk.Event) -> None:
+        if not self.winfo_ismapped():
+            return
         direccion = -1 if evento.delta > 0 else 1
         self._lienzo.yview_scroll(direccion * PASOS_POR_GIRO, "units")
-
-
-def _fuente_negrita() -> tkfont.Font:
-    fuente = tkfont.nametofont("TkDefaultFont").copy()
-    fuente.configure(weight="bold")
-    return fuente

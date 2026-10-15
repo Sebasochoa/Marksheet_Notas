@@ -5,10 +5,11 @@ import math
 import time
 import tkinter as tk
 
+from ..config import CRITERIOS
 from . import tema
 from .fila import COLUMNA_FINAL, COLUMNA_TOTAL, PRIMERA_COLUMNA_NOTAS, configurar_columnas, \
     crear_encabezado, crear_linea
-from ..config import CRITERIOS
+from .neu import Campo
 
 PERIODO_MS = 1400
 PASO_MS = 50
@@ -29,8 +30,8 @@ class Brillo:
         self._inicio = 0.0
 
     def agregar(self, bloque: tk.Frame, desfase: float = 0.0, atenuacion: float = 0.0) -> None:
-        oscuro = tema.mezclar(tema.NEUTRO_300, tema.FONDO, atenuacion)
-        claro = tema.mezclar(tema.NEUTRO_100, tema.FONDO, atenuacion)
+        oscuro = tema.mezclar(tema.ESQ_OSCURO, tema.FONDO, atenuacion)
+        claro = tema.mezclar(tema.ESQ_CLARO, tema.FONDO, atenuacion)
         self._bloques.append((bloque, desfase, oscuro, claro))
 
     def iniciar(self) -> None:
@@ -46,8 +47,7 @@ class Brillo:
     def _animar(self) -> None:
         ciclos = (time.monotonic() - self._inicio) * 1000 / PERIODO_MS
         for bloque, desfase, oscuro, claro in self._bloques:
-            fase = (ciclos - desfase) % 1.0
-            luz = 0.5 - 0.5 * math.cos(2 * math.pi * fase)
+            luz = 0.5 - 0.5 * math.cos(2 * math.pi * ((ciclos - desfase) % 1.0))
             bloque.configure(bg=tema.mezclar(oscuro, claro, luz))
         self._tarea = self._dueno.after(PASO_MS, self._animar)
 
@@ -67,13 +67,12 @@ class TablaEsqueleto(tk.Frame):
             self._bloque(fila, 0, 16, k, "e", atenuacion)
             self._bloque(fila, 2, 84, k, "w", atenuacion)
             self._bloque(fila, 3, ANCHOS_NOMBRE[k % len(ANCHOS_NOMBRE)], k, "w", atenuacion)
-            campo = tema.mezclar(tema.SUPERFICIE, tema.FONDO, atenuacion)
             for desplazamiento in range(len(CRITERIOS)):
-                tk.Frame(self, width=px(50), height=px(30), bg=campo).grid(
+                Campo(self, con_entrada=False).grid(
                     row=fila, column=PRIMERA_COLUMNA_NOTAS + desplazamiento,
-                    padx=px(4), pady=px(6))
+                    padx=px(4), pady=px(7))
             for columna in (COLUMNA_TOTAL, COLUMNA_FINAL):
-                tk.Frame(self, width=px(14), height=px(2), bg=tema.NEUTRO_300).grid(
+                tk.Frame(self, width=px(14), height=px(2), bg=tema.ESQ_TRAZO).grid(
                     row=fila, column=columna)
             crear_linea(self, fila + 1)
 
@@ -84,6 +83,6 @@ class TablaEsqueleto(tk.Frame):
         self._brillo.detener()
 
     def _bloque(self, fila, columna, ancho, k, sticky, atenuacion) -> None:
-        bloque = tk.Frame(self, width=tema.px(ancho), height=tema.px(11), bg=tema.NEUTRO_300)
+        bloque = tk.Frame(self, width=tema.px(ancho), height=tema.px(11), bg=tema.ESQ_OSCURO)
         bloque.grid(row=fila, column=columna, sticky=sticky, padx=tema.px(4))
         self._brillo.agregar(bloque, k * DESFASE_FILA + columna * DESFASE_COLUMNA, atenuacion)

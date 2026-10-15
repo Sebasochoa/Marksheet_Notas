@@ -5,19 +5,22 @@ import tkinter as tk
 from typing import Callable
 
 from . import tema
+from .neu import superficie
 
-ANCHO = 720
-ALTO = 112
+ANCHO = 600
+ALTO = 210
+LADO_ICONO = 64
 
 
 class ZonaArchivo(tk.Canvas):
     def __init__(self, padre: tk.Misc, al_elegir: Callable[[], None],
                  al_soltar: Callable[[str], None]):
-        super().__init__(padre, width=tema.px(ANCHO), height=tema.px(ALTO), bg=tema.FONDO,
+        self._w, self._h = tema.px(ANCHO), tema.px(ALTO)
+        super().__init__(padre, width=self._w, height=self._h, bg=tema.FONDO,
                          highlightthickness=0, bd=0, cursor="hand2")
         self._activa = False
+        self._fotos = []
         self._con_arrastre = habilitar_arrastre(self, al_soltar, self._resaltar)
-        self.bind("<Configure>", lambda _e: self._dibujar())
         self.bind("<Enter>", lambda _e: self._resaltar(True))
         self.bind("<Leave>", lambda _e: self._resaltar(False))
         self.bind("<Button-1>", lambda _e: al_elegir())
@@ -31,27 +34,26 @@ class ZonaArchivo(tk.Canvas):
     def _dibujar(self) -> None:
         px, f = tema.px, tema.fuentes
         self.delete("all")
-        ancho = max(self.winfo_width(), 2) if self.winfo_width() > 1 else px(ANCHO)
-        alto = max(self.winfo_height(), 2) if self.winfo_height() > 1 else px(ALTO)
-        fondo = tema.ACENTO_100 if self._activa else tema.SUPERFICIE
-        borde = tema.ACENTO if self._activa else tema.NEUTRO_400
-        grosor = max(1, round(1.5 * tema.ESCALA))
-        self.create_rectangle(grosor, grosor, ancho - grosor, alto - grosor, fill=fondo,
-                              outline=borde, dash=(4, 3), width=grosor)
-        x, y = px(30), (alto - px(46)) // 2
-        self.create_rectangle(x, y, x + px(36), y + px(46), outline=tema.ACENTO, width=grosor,
-                              fill=fondo)
-        self.create_text(x + px(18), y + px(30), text="PDF", fill=tema.ACENTO_700,
-                         font=f.mini_fuerte)
+        fondo = superficie(self._w, self._h, px(22), "hundido", distancia=px(4),
+                           desenfoque=px(6), anillo=tema.CIAN if self._activa else None)
+        d, b = px(3), px(5)
+        m = d + 2 * b
+        lado = px(LADO_ICONO)
+        icono = superficie(lado + 2 * m, lado + 2 * m, px(20), "elevado", margen=m,
+                           distancia=d, desenfoque=b, relleno=tema.CIAN_FONDO)
+        self._fotos = [fondo, icono]
+        cx = self._w // 2
+        self.create_image(0, 0, anchor="nw", image=fondo)
+        self.create_image(cx, px(24) + lado // 2, image=icono)
+        self.create_text(cx, px(24) + lado // 2, text=tema.glifo("subir"),
+                         fill=tema.CIAN_CLARO if self._activa else tema.CIAN,
+                         font=tema.fuente_icono(24))
         if self._con_arrastre:
             titulo, detalle = "Arrastra el PDF aquí", "o haz clic para elegirlo en tu equipo"
         else:
             titulo, detalle = "Elige el PDF de la Mark Sheet", "Haz clic aquí para buscarlo en tu equipo"
-        texto_x = x + px(56)
-        self.create_text(texto_x, alto / 2 - px(11), text=titulo, anchor="w", font=f.zona,
-                         fill=tema.TEXTO)
-        self.create_text(texto_x, alto / 2 + px(13), text=detalle, anchor="w", font=f.cuerpo,
-                         fill=tema.NEUTRO_700)
+        self.create_text(cx, px(126), text=titulo, font=f.zona, fill=tema.TEXTO)
+        self.create_text(cx, px(154), text=detalle, font=f.cuerpo, fill=tema.TEXTO_SUAVE)
 
 
 def habilitar_arrastre(widget: tk.Widget, al_soltar: Callable[[str], None],

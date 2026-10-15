@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
 
 from . import tema
+from .neu import Boton, chip
 
-ETIQUETAS = {"error": "Error", "aviso": "Aviso", "pregunta": "Confirmar", "ok": "Listo"}
-COLORES = {"error": tema.MAGENTA_700, "aviso": tema.MAGENTA_700,
-           "pregunta": tema.ACENTO_700, "ok": tema.ACENTO_700}
+TIPOS = {
+    "error": ("error", tema.MAGENTA, tema.MAGENTA_FONDO),
+    "aviso": ("aviso", tema.MAGENTA, tema.MAGENTA_FONDO),
+    "pregunta": ("pregunta", tema.AMARILLO, tema.AMARILLO_FONDO),
+    "ok": ("ok", tema.CIAN, tema.CIAN_FONDO),
+}
 ANCHO_TEXTO = 400
 
 
@@ -21,26 +24,29 @@ class Dialogo(tk.Toplevel):
         self.title(titulo)
         self.transient(padre.winfo_toplevel())
         self.resizable(False, False)
-        self.configure(bg=tema.SUPERFICIE)
+        self.configure(bg=tema.FONDO)
         px, f = tema.px, tema.fuentes
+        icono, color, fondo = TIPOS[tipo]
 
-        cuerpo = tk.Frame(self, bg=tema.SUPERFICIE, padx=px(26), pady=px(22))
+        cuerpo = tk.Frame(self, bg=tema.FONDO, padx=px(22), pady=px(18))
         cuerpo.pack(fill="both", expand=True)
-        tk.Label(cuerpo, text=ETIQUETAS[tipo].upper(), font=f.mini_fuerte, fg=COLORES[tipo],
-                 bg=tema.SUPERFICIE).pack(anchor="w")
-        tk.Label(cuerpo, text=titulo, font=f.dialogo, fg=tema.TEXTO,
-                 bg=tema.SUPERFICIE).pack(anchor="w", pady=(px(2), px(10)))
-        tk.Label(cuerpo, text=texto, font=f.cuerpo, fg=tema.NEUTRO_800, bg=tema.SUPERFICIE,
-                 justify="left", wraplength=px(ANCHO_TEXTO)).pack(anchor="w")
+        cabeza = tk.Frame(cuerpo, bg=tema.FONDO)
+        cabeza.pack(anchor="w", fill="x")
+        chip(cabeza, icono, color, fondo, tamano=40, tamano_icono=16).pack(side="left")
+        tk.Label(cabeza, text=titulo, font=f.dialogo, fg=tema.TEXTO,
+                 bg=tema.FONDO).pack(side="left", padx=(px(10), 0))
+        tk.Label(cuerpo, text=texto, font=f.cuerpo, fg="#c3c7cf", bg=tema.FONDO,
+                 justify="left", wraplength=px(ANCHO_TEXTO)).pack(anchor="w",
+                                                                  pady=(px(10), 0),
+                                                                  padx=(px(4), 0))
 
-        acciones = tk.Frame(cuerpo, bg=tema.SUPERFICIE)
-        acciones.pack(fill="x", pady=(px(22), 0))
+        acciones = tk.Frame(cuerpo, bg=tema.FONDO)
+        acciones.pack(fill="x", pady=(px(14), 0))
         principal = None
         for texto_boton, valor, es_principal in reversed(botones):
-            boton = ttk.Button(acciones, text=texto_boton,
-                               style="Primario.TButton" if es_principal else "Secundario.TButton",
-                               command=lambda v=valor: self._cerrar(v))
-            boton.pack(side="right", padx=(px(10), 0))
+            boton = Boton(acciones, texto_boton, variante="primario" if es_principal else "secundario",
+                          comando=lambda v=valor: self._cerrar(v))
+            boton.pack(side="right")
             if es_principal:
                 principal = (boton, valor)
 
@@ -51,7 +57,7 @@ class Dialogo(tk.Toplevel):
         self._centrar(padre)
         self.deiconify()
         self.grab_set()
-        (principal[0] if principal else self).focus_set()
+        self.focus_set()
         self.wait_window()
 
     def _centrar(self, padre: tk.Misc) -> None:
