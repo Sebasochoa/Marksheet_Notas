@@ -183,7 +183,7 @@ class VentanaPrincipal(tk.Tk):
         barra.pack(fill="x", pady=(px(10), 0))
         centrar(exterior, barra)
         neu.chip(barra, "documento", "#10161c", tamano=42, radio=13, tamano_icono=17,
-                 degradado=(tema.CIAN, tema.MAGENTA)).pack(side="left")
+                 degradado=(tema.CIAN, tema.CIAN)).pack(side="left")
         marca = tk.Frame(barra, bg=tema.FONDO)
         marca.pack(side="left", padx=(px(4), 0))
         tk.Label(marca, text="Mark Sheet", font=f.marca, fg=tema.TEXTO,
