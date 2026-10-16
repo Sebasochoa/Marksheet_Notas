@@ -27,6 +27,10 @@ marksheet/
     tabla.py             tabla desplazable y navegación con teclado
     ventana.py           flujo abrir → ingresar → generar
     inicio.py            arranque y nitidez en pantallas con escalado
+    icono.py             ícono de ventana, diálogos y barra de tareas
+    recursos/            icono.ico (16-256 px), icono.png, icono.svg
+herramientas/
+  generar_icono.py       regenera los recursos del ícono desde su definición SVG
 tests/                   pytest sobre una Mark Sheet sintética con datos ficticios
 ```
 
@@ -39,5 +43,13 @@ estos no conocen la interfaz ni entre sí, y comparten solo `modelos`, `config` 
 pip install -r requirements-dev.txt
 python main.py
 python -m pytest
-pyinstaller --onefile --windowed --name LlenarMarkSheet main.py
+pyinstaller --onefile --windowed --name LlenarMarkSheet ^
+  --icon marksheet/interfaz/recursos/icono.ico ^
+  --add-data "marksheet/interfaz/recursos;marksheet/interfaz/recursos" ^
+  --add-data "marksheet/interfaz/fuentes;marksheet/interfaz/fuentes" ^
+  --collect-all tkinterdnd2 main.py
 ```
+
+`--icon` solo cambia el ícono del archivo .exe; el de la ventana y la barra de tareas lo pone
+`interfaz/icono.py` en tiempo de ejecución, por eso `recursos/` también va con `--add-data`.
+Para cambiar el ícono: editar y ejecutar `herramientas/generar_icono.py`.

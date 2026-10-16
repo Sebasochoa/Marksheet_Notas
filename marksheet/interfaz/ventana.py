@@ -20,6 +20,7 @@ from ..notas import Revision, revisar
 from . import neu, tema
 from .dialogo import informar, preguntar
 from .esqueleto import TablaEsqueleto
+from .icono import aplicar_icono
 from .tabla import TablaNotas
 from .zona import ZonaArchivo
 
@@ -57,6 +58,7 @@ def centrar(contenedor: tk.Misc, hijo: tk.Widget) -> None:
 class VentanaPrincipal(tk.Tk):
     def __init__(self, ruta_inicial: str | None = None):
         super().__init__()
+        aplicar_icono(self)          # antes de que la ventana se dibuje: sin destello de la pluma
         self.title(TITULO)
         self.geometry(GEOMETRIA_INICIAL)
         self.minsize(*TAMANO_MINIMO)
@@ -183,7 +185,7 @@ class VentanaPrincipal(tk.Tk):
         barra.pack(fill="x", pady=(px(10), 0))
         centrar(exterior, barra)
         neu.chip(barra, "documento", "#10161c", tamano=42, radio=13, tamano_icono=17,
-                 degradado=(tema.CIAN, tema.CIAN)).pack(side="left")
+                 degradado=(tema.CIAN, tema.MAGENTA)).pack(side="left")
         marca = tk.Frame(barra, bg=tema.FONDO)
         marca.pack(side="left", padx=(px(4), 0))
         tk.Label(marca, text="Mark Sheet", font=f.marca, fg=tema.TEXTO,
