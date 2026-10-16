@@ -1,11 +1,12 @@
 """Ubicación de la grilla de notas: encabezado, columnas y filas."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping, Sequence
 
-from ..config import COLUMNAS_GRILLA, CRITERIOS
+from ..config import COLUMNA_FINAL, COLUMNA_TOTAL, CRITERIOS
 from .geometria import (Borde, Intervalo, Palabra, fusionar_cercanos, intervalo_que_contiene,
                         punto_medio)
 from .renglones import RenglonAlumno
@@ -14,6 +15,7 @@ TOLERANCIA_LINEA = 1.5             # pt: bordes más cercanos que esto son la mi
 MARGEN_BUSQUEDA_COLUMNAS = 40.0    # pt alrededor de los rótulos donde se buscan verticales
 HOLGURA_EXTENSION = 1.0            # pt al comparar horizontales con la altura de la grilla
 SEPARACION_SIN_LINEAS = 2.0        # pt entre el primer rótulo y el borde supuesto de la grilla
+PATRON_ROTULO_CRITERIO = re.compile(r"^[A-Z]{2,3}$")
 
 
 @dataclass(frozen=True)
@@ -34,13 +36,36 @@ class Grilla:
 
 
 def buscar_encabezado(renglones: Sequence[Sequence[Palabra]]) -> dict[str, Palabra] | None:
-    """El encabezado es el único renglón con todas las columnas juntas (la leyenda inferior
-    repite IC, DM, PR... pero cada sigla en su propio renglón)."""
+    """Rótulos de la grilla por columna. Ver _leer_encabezado."""
     for renglon in renglones:
-        por_rotulo = {_normalizar_rotulo(p.texto): p for p in renglon}
-        if all(columna in por_rotulo for columna in COLUMNAS_GRILLA):
-            return {columna: por_rotulo[columna] for columna in COLUMNAS_GRILLA}
+        encabezado = _leer_encabezado(renglon)
+        if encabezado:
+            return encabezado
     return None
+
+
+def rotulo(palabra: Palabra) -> str:
+    return _normalizar_rotulo(palabra.texto)
+
+
+def _leer_encabezado(renglon: Sequence[Palabra]) -> dict[str, Palabra] | None:
+    """El encabezado es el renglón con TOTAL y luego FR, precedidos por un rótulo corto por
+    criterio. Los criterios se toman por posición porque su nombre cambia según el nivel
+    (LA o GV); la leyenda inferior repite las siglas, pero sin TOTAL en el mismo renglón."""
+    rotulos = [rotulo(p) for p in renglon]
+    if COLUMNA_TOTAL not in rotulos or COLUMNA_FINAL not in rotulos:
+        return None
+    posicion_total = rotulos.index(COLUMNA_TOTAL)
+    posicion_final = rotulos.index(COLUMNA_FINAL)
+    inicio = posicion_total - len(CRITERIOS)
+    if inicio < 0 or posicion_final < posicion_total:
+        return None
+    if not all(PATRON_ROTULO_CRITERIO.match(r) for r in rotulos[inicio:posicion_total]):
+        return None
+    encabezado = dict(zip(CRITERIOS, renglon[inicio:posicion_total]))
+    encabezado[COLUMNA_TOTAL] = renglon[posicion_total]
+    encabezado[COLUMNA_FINAL] = renglon[posicion_final]
+    return encabezado
 
 
 def construir_grilla(encabezado: Mapping[str, Palabra], bordes: Sequence[Borde],

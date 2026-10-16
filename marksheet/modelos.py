@@ -38,6 +38,7 @@ class FilaPlantilla:
 class Plantilla:
     filas: tuple[FilaPlantilla, ...]
     ya_tiene_valores: bool      # la grilla ya trae texto, p. ej. un PDF generado antes
+    rotulos_criterios: tuple[str, ...]      # como los imprime el PDF, p. ej. (..., "GV")
 
 
 @dataclass(frozen=True)

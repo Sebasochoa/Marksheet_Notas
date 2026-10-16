@@ -1,5 +1,7 @@
 """Parámetros de la Mark Sheet: único lugar a tocar si cambia el formato o las reglas."""
 
+# Identificadores internos de los criterios, en orden. Se detectan por posición, no por nombre:
+# el 4.º se imprime "LA" (Language) en Juniors y "GV" (Grammar and Vocabulary) en Adults.
 CRITERIOS = ("IC", "DM", "PR", "LA")
 COLUMNA_TOTAL = "TOTAL"
 COLUMNA_FINAL = "FR"

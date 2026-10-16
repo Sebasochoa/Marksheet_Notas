@@ -7,8 +7,9 @@ from marksheet.deteccion.grilla import buscar_encabezado, construir_grilla
 from marksheet.deteccion.renglones import (agrupar_en_renglones, leer_renglon_alumno,
                                            separar_apellidos_y_nombres)
 from marksheet.errores import PlantillaNoReconocida
-from marksheet_sintetica import (ALUMNOS, CORTES_COLUMNAS, ROTULOS, centro_fila,
-                                 centros_columnas, crear_pdf, crear_pdf_sin_plantilla)
+from marksheet_sintetica import (ALUMNOS, CORTES_COLUMNAS, ROTULOS, ROTULOS_ADULTOS,
+                                 centro_fila, centros_columnas, crear_pdf,
+                                 crear_pdf_sin_plantilla)
 
 ANCHO_LETRA, ESPACIO, ALTO_TEXTO = 5.0, 2.2, 8.0
 TOP_PRIMER_ALUMNO = 163.87
@@ -33,10 +34,13 @@ def renglon_alumno(numero, apellidos, nombres, top=TOP_PRIMER_ALUMNO, marca=""):
     return leer_renglon_alumno(palabras)
 
 
-def encabezado():
-    rotulos = [palabra(r, centro - ANCHO_LETRA * len(r) / 2, top=139.4)
-               for r, centro in zip(ROTULOS, centros_columnas())]
-    return buscar_encabezado([rotulos])
+def palabras_de_encabezado(rotulos=ROTULOS):
+    return [palabra(r, centro - ANCHO_LETRA * len(r) / 2, top=139.4)
+            for r, centro in zip(rotulos, centros_columnas())]
+
+
+def encabezado(rotulos=ROTULOS):
+    return buscar_encabezado([palabras_de_encabezado(rotulos)])
 
 
 def lineas(vertical, posiciones, desde, hasta):
@@ -86,6 +90,16 @@ def test_encabezado_ignora_la_leyenda_que_repite_las_siglas():
     assert set(hallado) == set(COLUMNAS_GRILLA) and all(p.top == 139.4 for p in hallado.values())
 
 
+def test_criterios_se_reconocen_por_posicion_y_no_por_nombre():
+    hallado = encabezado(ROTULOS_ADULTOS)
+    assert [hallado[c].texto for c in COLUMNAS_GRILLA] == list(ROTULOS_ADULTOS)
+
+
+def test_renglon_sin_total_no_es_encabezado():
+    sin_total = [p for p in palabras_de_encabezado() if p.texto != "TOTAL"]
+    assert buscar_encabezado([sin_total]) is None
+
+
 def test_grilla_centra_columnas_y_filas_entre_sus_lineas():
     bordes = (lineas(True, CORTES_COLUMNAS, 137.48, 300.0)
               + lineas(False, (137.48, 147.50, 157.52, 171.72), 392.70, 574.40))
@@ -117,6 +131,13 @@ def test_ubica_cada_alumno_en_el_centro_de_su_celda():
     assert [f.ubicacion.y_centro for f in filas] == pytest.approx(
         [centro_fila(i) for i in range(len(ALUMNOS))])
     assert list(filas[0].ubicacion.x_por_columna.values()) == pytest.approx(centros_columnas())
+
+
+@pytest.mark.parametrize("rotulos", [ROTULOS, ROTULOS_ADULTOS])
+def test_plantilla_informa_los_criterios_como_los_imprime_el_pdf(rotulos):
+    plantilla = detectar_plantilla(crear_pdf(rotulos=rotulos))
+    assert plantilla.rotulos_criterios == tuple(rotulos[:4])
+    assert len(plantilla.filas) == len(ALUMNOS)
 
 
 def test_detecta_cada_pagina_por_separado():

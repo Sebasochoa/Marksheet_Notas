@@ -35,7 +35,7 @@ SUFIJO_SALIDA = "_notas"
 TIPOS_PDF = [("PDF", "*.pdf")]
 LARGO_NOMBRE_BARRA = 40
 PASOS = ("Leyendo el PDF", "Detectando la grilla", "Leyendo alumnos")
-INTRODUCCION = ("Escribe IC, DM, PR y LA sobre el PDF que genera BI Publisher. TOTAL y FR se "
+INTRODUCCION = ("Escribe los cuatro criterios sobre el PDF que genera BI Publisher. TOTAL y FR se "
                 "calculan solos, y el resultado se guarda como copia: el original no cambia.")
 TARJETAS = (
     ("alumnos", "alumnos", tema.AMARILLO, tema.AMARILLO_FONDO, "Alumnos"),
@@ -157,7 +157,7 @@ class VentanaPrincipal(tk.Tk):
         self._ruta_pdf, self._pdf_bytes, self._plantilla = ruta, pdf_bytes, plantilla
         self._cargando = False
         self._generado = ""
-        self._tabla.mostrar(plantilla.filas)
+        self._tabla.mostrar(plantilla.filas, plantilla.rotulos_criterios)
         self._mostrar_listo()
         self._advertir_si_ya_tiene_valores(plantilla)
 

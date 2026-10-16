@@ -13,7 +13,8 @@ CORTES_COLUMNAS = (392.70, 420.90, 449.15, 477.40, 505.65, 543.35, 573.90)
 LINEAS_ENCABEZADO = (137.48, 147.50, 157.52)
 ALTO_FILA = 14.2
 BASE_ROTULOS, BASE_MAXIMOS, BASE_PRIMER_ALUMNO = 145.74, 155.76, 170.21
-ROTULOS = ("IC", "DM", "PR", "LA", "TOTAL", "FR*")
+ROTULOS = ("IC", "DM", "PR", "LA", "TOTAL", "FR*")            # Juniors
+ROTULOS_ADULTOS = ("IC", "DM", "PR", "GV", "TOTAL", "FR*")    # Grammar and Vocabulary
 MAXIMOS = ("5", "5", "5", "5", "20", "10")
 X_DATOS = (25.25, 50.30, 70.10, 134.95, 266.65)    # N°, marca, código, apellidos, nombres
 PERMISOS_REPORTE = -12                               # imprimir y copiar sí; modificar no
@@ -26,11 +27,11 @@ ALUMNOS = (
 
 
 def crear_pdf(algoritmo: str | None = "RC4-40", contrasena_propietario: str = "",
-              paginas: int = 1) -> bytes:
+              paginas: int = 1, rotulos: Sequence[str] = ROTULOS) -> bytes:
     """Mark Sheet de 'paginas' hojas independientes, cifrada como el reporte si hay algoritmo."""
     escritor = PdfWriter()
     for _ in range(paginas):
-        escritor.add_page(PdfReader(io.BytesIO(_dibujar_hoja(ALUMNOS))).pages[0])
+        escritor.add_page(PdfReader(io.BytesIO(_dibujar_hoja(ALUMNOS, rotulos))).pages[0])
     if algoritmo is not None:
         escritor.encrypt("", contrasena_propietario, permissions_flag=PERMISOS_REPORTE,
                          algorithm=algoritmo)
@@ -64,11 +65,11 @@ def _y(top: float) -> float:
     return ALTO - top
 
 
-def _dibujar_hoja(alumnos: Sequence[tuple[str, ...]]) -> bytes:
+def _dibujar_hoja(alumnos: Sequence[tuple[str, ...]], rotulos: Sequence[str]) -> bytes:
     buffer = io.BytesIO()
     lienzo = Canvas(buffer, pagesize=(ANCHO, ALTO))
     _dibujar_grilla(lienzo, len(alumnos))
-    _dibujar_encabezados(lienzo)
+    _dibujar_encabezados(lienzo, rotulos)
     _dibujar_alumnos(lienzo, alumnos)
     _dibujar_leyenda(lienzo)
     lienzo.save()
@@ -86,9 +87,9 @@ def _dibujar_grilla(lienzo: Canvas, cantidad: int) -> None:
                     stroke=0, fill=1)
 
 
-def _dibujar_encabezados(lienzo: Canvas) -> None:
+def _dibujar_encabezados(lienzo: Canvas, rotulos: Sequence[str]) -> None:
     lienzo.setFont("Helvetica-Bold", 8)
-    for rotulo, maximo, centro in zip(ROTULOS, MAXIMOS, centros_columnas()):
+    for rotulo, maximo, centro in zip(rotulos, MAXIMOS, centros_columnas()):
         lienzo.drawCentredString(centro, _y(BASE_ROTULOS), rotulo)
         lienzo.drawCentredString(centro, _y(BASE_MAXIMOS), maximo)
     for texto, x in (("N0", 28.0), ("CODE", 85.57), ("LAST NAME", 172.07), ("FIRST NAME", 302.66)):

@@ -28,8 +28,10 @@ def configurar_columnas(contenedor: tk.Misc) -> None:
                                         weight=1 if columna == COLUMNA_NOMBRE else 0)
 
 
-def crear_encabezado(contenedor: tk.Misc) -> None:
-    for columna, (texto, alineacion) in enumerate(zip(ENCABEZADOS, ALINEACION_ENCABEZADO)):
+def crear_encabezado(contenedor: tk.Misc, rotulos_criterios: tuple[str, ...] = CRITERIOS) -> None:
+    """Encabezado de la grilla con los criterios tal como los imprime el PDF (LA o GV)."""
+    textos = ENCABEZADOS_DATOS + tuple(rotulos_criterios) + COLUMNAS_GRILLA[len(CRITERIOS):]
+    for columna, (texto, alineacion) in enumerate(zip(textos, ALINEACION_ENCABEZADO)):
         tk.Label(contenedor, text=texto.upper(), font=tema.fuentes.mini, fg=tema.TEXTO_TENUE,
                  bg=tema.FONDO).grid(row=0, column=columna, sticky=alineacion,
                                      padx=tema.px(4), pady=(tema.px(2), tema.px(8)))

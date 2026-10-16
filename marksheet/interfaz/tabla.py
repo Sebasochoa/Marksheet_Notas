@@ -22,9 +22,10 @@ class TablaNotas(tk.Frame):
         self.filas: list[FilaNotas] = []
         self._entradas: list[tk.Entry] = []
 
-    def mostrar(self, filas_plantilla: Sequence[FilaPlantilla]) -> None:
+    def mostrar(self, filas_plantilla: Sequence[FilaPlantilla],
+                rotulos_criterios: tuple[str, ...] = CRITERIOS) -> None:
         self._limpiar()
-        crear_encabezado(self._interior)
+        crear_encabezado(self._interior, rotulos_criterios)
         separar_paginas = len({f.ubicacion.pagina for f in filas_plantilla}) > 1
         numero_fila, pagina_actual = 2, None
         for fila_plantilla in filas_plantilla:

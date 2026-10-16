@@ -10,7 +10,8 @@ from pdfplumber.page import Page
 from ..errores import FormatoNoSoportado, PlantillaNoReconocida
 from ..modelos import Alumno, FilaPlantilla, Plantilla, Ubicacion
 from .geometria import Borde, Palabra
-from .grilla import Grilla, buscar_encabezado, construir_grilla
+from ..config import CRITERIOS
+from .grilla import Grilla, buscar_encabezado, construir_grilla, rotulo
 from .renglones import (RenglonAlumno, agrupar_en_renglones, leer_renglon_alumno,
                         separar_apellidos_y_nombres)
 
@@ -20,29 +21,34 @@ HOLGURA_FRANJA_ALUMNOS = 4.0    # pt sobre y bajo las filas al buscar valores ya
 def detectar_plantilla(pdf_bytes: bytes) -> Plantilla:
     filas: list[FilaPlantilla] = []
     ya_tiene_valores = False
+    rotulos: tuple[str, ...] | None = None
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:   # pdfminer descifra con clave vacía
         for indice, pagina in enumerate(pdf.pages):
-            filas_pagina, con_valores = _detectar_pagina(pagina, indice)
+            filas_pagina, con_valores, rotulos_pagina = _detectar_pagina(pagina, indice)
             filas.extend(filas_pagina)
             ya_tiene_valores = ya_tiene_valores or con_valores
+            rotulos = rotulos or rotulos_pagina
     if not filas:
         raise PlantillaNoReconocida(
-            "No se encontró la grilla IC/DM/PR/LA/TOTAL/FR con filas de alumnos.")
-    return Plantilla(tuple(filas), ya_tiene_valores)
+            "No se encontró la grilla de notas (4 criterios, TOTAL y FR) con filas de alumnos.")
+    return Plantilla(tuple(filas), ya_tiene_valores, rotulos)
 
 
-def _detectar_pagina(pagina: Page, indice: int) -> tuple[list[FilaPlantilla], bool]:
+def _detectar_pagina(pagina: Page, indice: int
+                     ) -> tuple[list[FilaPlantilla], bool, tuple[str, ...] | None]:
     renglones = agrupar_en_renglones(_palabras(pagina))
     encabezado = buscar_encabezado(renglones)
     if encabezado is None:
-        return [], False
+        return [], False, None
     if pagina.rotation:
         raise FormatoNoSoportado(f"La página {indice + 1} está rotada.")
     grilla = construir_grilla(encabezado, _bordes(pagina), pagina.height)
     alumnos = _renglones_de_alumnos(renglones, grilla)
     if not alumnos:
-        return [], False
-    return _armar_filas(alumnos, grilla, indice), _franja_tiene_valores(renglones, alumnos, grilla)
+        return [], False, None
+    rotulos = tuple(rotulo(encabezado[criterio]) for criterio in CRITERIOS)
+    return (_armar_filas(alumnos, grilla, indice),
+            _franja_tiene_valores(renglones, alumnos, grilla), rotulos)
 
 
 def _renglones_de_alumnos(renglones: Sequence[Sequence[Palabra]],
