@@ -391,7 +391,7 @@ class VentanaPrincipal(tk.Tk):
         self._aviso_nombre.configure(text=_acortar(os.path.basename(ruta)))
         self._aviso.place(in_=self._cuerpo, relx=1.0, rely=1.0, x=-tema.px(MARGEN // 2),
                           y=-tema.px(2), anchor="se")
-        self._aviso.lift()
+        tk.Misc.tkraise(self._aviso)     # Canvas.lift() es tag_raise (ítems), no la ventana
 
     def _ocultar_aviso(self) -> None:
         self._aviso.place_forget()

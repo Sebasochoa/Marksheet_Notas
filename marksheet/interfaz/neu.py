@@ -26,6 +26,14 @@ def _degradado(tam, inicio: str, fin: str) -> Image.Image:
     return Image.composite(_capa(tam, fin), _capa(tam, inicio), mascara)
 
 
+def _desplazar(mascara: Image.Image, dx: int, dy: int) -> Image.Image:
+    """Desplaza sin envolver: lo que sale por un borde no reaparece por el opuesto
+    (ImageChops.offset sí envuelve, y con margen 0 deja la sombra solo en las esquinas)."""
+    desplazada = Image.new(mascara.mode, mascara.size, 0)
+    desplazada.paste(mascara, (dx, dy))
+    return desplazada
+
+
 def margen_elevado(distancia: float, desenfoque: float) -> int:
     return tema.px(distancia) + 2 * tema.px(desenfoque)
 
@@ -52,13 +60,13 @@ def superficie(ancho: int, alto: int, radio: int, modo: str = "elevado", margen:
     d, b = distancia * s, desenfoque * s
     if modo == "elevado":
         for color, dx in ((resplandor or tema.SOMBRA, d), (tema.LUZ, -d)):
-            sombra = ImageChops.offset(forma, dx, dx).filter(ImageFilter.GaussianBlur(b))
+            sombra = _desplazar(forma, dx, dx).filter(ImageFilter.GaussianBlur(b))
             imagen.paste(_capa(tam, color), (0, 0), sombra)
     cuerpo = _degradado(tam, *degradado) if degradado else _capa(tam, relleno)
     imagen.paste(cuerpo, (0, 0), forma)
     if modo == "hundido":
         for color, dx in ((tema.SOMBRA, d), (tema.LUZ, -d)):
-            hueco = ImageChops.invert(ImageChops.offset(forma, dx, dx))
+            hueco = ImageChops.invert(_desplazar(forma, dx, dx))
             alfa = ImageChops.multiply(hueco.filter(ImageFilter.GaussianBlur(b)), forma)
             imagen.paste(_capa(tam, color), (0, 0), alfa)
     if anillo:
@@ -179,12 +187,12 @@ class Boton(tk.Canvas):
         ancho_ico = tema.fuente_icono(13).measure(tema.glifo(self._icono)) if self._icono else 0
         ancho_txt = tema.fuentes.boton.measure(self._texto) if self._texto else 0
         hueco = px(8) if self._icono and self._texto else 0
-        self._h = px(40)
-        self._w = ancho_ico + hueco + ancho_txt + 2 * px(17) if self._texto else self._h
+        self._alto = px(40)
+        self._ancho = ancho_ico + hueco + ancho_txt + 2 * px(17) if self._texto else self._alto
         m = self._m
-        self.configure(width=self._w + 2 * m, height=self._h + 2 * m,cursor="arrow" if self._estado == "disabled" else "hand2")
-        x = m + (self._w - ancho_ico) // 2 if not self._texto else m + px(17)
-        y = m + self._h // 2
+        self.configure(width=self._ancho + 2 * m, height=self._alto + 2 * m,cursor="arrow" if self._estado == "disabled" else "hand2")
+        x = m + (self._ancho - ancho_ico) // 2 if not self._texto else m + px(17)
+        y = m + self._alto // 2
         self.coords(self._ico, x, y)
         self.coords(self._lbl, x + ancho_ico + hueco, y)
         self.itemconfigure(self._ico, text=tema.glifo(self._icono) if self._icono else "")
@@ -217,7 +225,7 @@ class Boton(tk.Canvas):
                 estilo = dict(modo="elevado", relleno=tema.HOVER if self._hover else tema.FONDO)
             tinta = tema.TEXTO
             tinta_icono = tema.CIAN_CLARO if self._hover else tema.CIAN
-        self._foto = superficie(self._w + 2 * self._m, self._h + 2 * self._m, **base, **estilo)
+        self._foto = superficie(self._ancho + 2 * self._m, self._alto + 2 * self._m, **base, **estilo)
         self.itemconfigure(self._img, image=self._foto)
         self.itemconfigure(self._ico, fill=tinta_icono)
         self.itemconfigure(self._lbl, fill=tinta)
@@ -228,8 +236,8 @@ class Campo(tk.Canvas):
 
     def __init__(self, padre: tk.Misc, variable: tk.StringVar | None = None, ancho: int = 52,
                  alto: int = 34, con_entrada: bool = True):
-        self._w, self._h = tema.px(ancho), tema.px(alto)
-        super().__init__(padre, width=self._w, height=self._h, bg=tema.FONDO,
+        self._ancho, self._alto = tema.px(ancho), tema.px(alto)
+        super().__init__(padre, width=self._ancho, height=self._alto, bg=tema.FONDO,
                          highlightthickness=0, bd=0)
         self._error = self._foco = False
         self._foto = None
@@ -241,8 +249,8 @@ class Campo(tk.Canvas):
                 fg=tema.TEXTO, bg=tema.FONDO, relief="flat", bd=0, highlightthickness=0,
                 insertbackground=tema.CIAN, selectbackground=tema.CIAN_OSCURO,
                 selectforeground="#ffffff")
-            self.create_window(self._w // 2, self._h // 2, window=self.entrada,
-                               width=self._w - tema.px(14))
+            self.create_window(self._ancho // 2, self._alto // 2, window=self.entrada,
+                               width=self._ancho - tema.px(14))
             self.entrada.bind("<FocusIn>", lambda _e: self._cambiar(foco=True), add="+")
             self.entrada.bind("<FocusOut>", lambda _e: self._cambiar(foco=False), add="+")
             self.bind("<Button-1>", lambda _e: self.entrada.focus_set())
@@ -260,7 +268,7 @@ class Campo(tk.Canvas):
     def _pintar(self) -> None:
         relleno = tema.MAGENTA_FONDO if self._error else tema.FONDO
         anillo = tema.MAGENTA if self._error else (tema.CIAN if self._foco else None)
-        self._foto = superficie(self._w, self._h, tema.px(10), modo="hundido",
+        self._foto = superficie(self._ancho, self._alto, tema.px(10), modo="hundido",
                                 distancia=tema.px(2), desenfoque=tema.px(3), relleno=relleno,
                                 anillo=anillo)
         self.itemconfigure(self._img, image=self._foto)
@@ -294,11 +302,11 @@ class Pastilla(tk.Canvas):
              "magenta": (tema.MAGENTA_FONDO, tema.MAGENTA_CLARO)}
 
     def __init__(self, padre: tk.Misc, ancho: int = 50, alto: int = 26):
-        self._w, self._h = tema.px(ancho), tema.px(alto)
-        super().__init__(padre, width=self._w, height=self._h, bg=tema.FONDO,
+        self._ancho, self._alto = tema.px(ancho), tema.px(alto)
+        super().__init__(padre, width=self._ancho, height=self._alto, bg=tema.FONDO,
                          highlightthickness=0, bd=0)
         self._img = self.create_image(0, 0, anchor="nw")
-        self._txt = self.create_text(self._w // 2, self._h // 2, font=tema.fuentes.celda_fuerte)
+        self._txt = self.create_text(self._ancho // 2, self._alto // 2, font=tema.fuentes.celda_fuerte)
         self._foto = None
 
     def mostrar(self, texto: str, tono: str | None) -> None:
@@ -307,7 +315,7 @@ class Pastilla(tk.Canvas):
             self.itemconfigure(self._txt, text="")
             return
         fondo, tinta = self.TONOS[tono]
-        self._foto = superficie(self._w, self._h, self._h // 2, "plano", relleno=fondo)
+        self._foto = superficie(self._ancho, self._alto, self._alto // 2, "plano", relleno=fondo)
         self.itemconfigure(self._img, image=self._foto)
         self.itemconfigure(self._txt, text=texto, fill=tinta)
 
@@ -316,18 +324,18 @@ class Barra(tk.Canvas):
     """Barra de progreso: canal hundido con relleno en degradado cian."""
 
     def __init__(self, padre: tk.Misc, ancho: int = 140, alto: int = 10):
-        self._w, self._h = tema.px(ancho), tema.px(alto)
-        super().__init__(padre, width=self._w, height=self._h, bg=tema.FONDO,
+        self._ancho, self._alto = tema.px(ancho), tema.px(alto)
+        super().__init__(padre, width=self._ancho, height=self._alto, bg=tema.FONDO,
                          highlightthickness=0, bd=0)
-        self._canal = superficie(self._w, self._h, self._h // 2, "hundido",
+        self._canal = superficie(self._ancho, self._alto, self._alto // 2, "hundido",
                                  distancia=tema.px(1), desenfoque=tema.px(2))
         self.create_image(0, 0, anchor="nw", image=self._canal)
         self._relleno = self.create_image(tema.px(2), tema.px(2), anchor="nw")
         self._foto = None
 
     def mostrar(self, fraccion: float) -> None:
-        interior = self._w - 2 * tema.px(2)
-        alto = self._h - 2 * tema.px(2)
+        interior = self._ancho - 2 * tema.px(2)
+        alto = self._alto - 2 * tema.px(2)
         ancho = round(interior * max(0.0, min(fraccion, 1.0)))
         if ancho < 2:
             self.itemconfigure(self._relleno, image="")

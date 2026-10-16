@@ -15,8 +15,8 @@ LADO_ICONO = 64
 class ZonaArchivo(tk.Canvas):
     def __init__(self, padre: tk.Misc, al_elegir: Callable[[], None],
                  al_soltar: Callable[[str], None]):
-        self._w, self._h = tema.px(ANCHO), tema.px(ALTO)
-        super().__init__(padre, width=self._w, height=self._h, bg=tema.FONDO,
+        self._ancho, self._alto = tema.px(ANCHO), tema.px(ALTO)
+        super().__init__(padre, width=self._ancho, height=self._alto, bg=tema.FONDO,
                          highlightthickness=0, bd=0, cursor="hand2")
         self._activa = False
         self._fotos = []
@@ -34,7 +34,7 @@ class ZonaArchivo(tk.Canvas):
     def _dibujar(self) -> None:
         px, f = tema.px, tema.fuentes
         self.delete("all")
-        fondo = superficie(self._w, self._h, px(22), "hundido", distancia=px(4),
+        fondo = superficie(self._ancho, self._alto, px(22), "hundido", distancia=px(4),
                            desenfoque=px(6), anillo=tema.CIAN if self._activa else None)
         d, b = px(3), px(5)
         m = d + 2 * b
@@ -42,7 +42,7 @@ class ZonaArchivo(tk.Canvas):
         icono = superficie(lado + 2 * m, lado + 2 * m, px(20), "elevado", margen=m,
                            distancia=d, desenfoque=b, relleno=tema.CIAN_FONDO)
         self._fotos = [fondo, icono]
-        cx = self._w // 2
+        cx = self._ancho // 2
         self.create_image(0, 0, anchor="nw", image=fondo)
         self.create_image(cx, px(24) + lado // 2, image=icono)
         self.create_text(cx, px(24) + lado // 2, text=tema.glifo("subir"),
